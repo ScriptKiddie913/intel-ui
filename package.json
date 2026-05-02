@@ -2,10 +2,14 @@
   "name": "intel-graph-ui",
   "private": true,
   "version": "1.0.0",
-  "description": "Vercel UI for searching Telegram intelligence messages and rendering graph nodes",
+  "description": "Render UI for searching Telegram intelligence messages and rendering graph nodes",
+  "type": "commonjs",
   "scripts": {
-    "dev": "vercel dev",
-    "deploy": "vercel --prod",
-    "vercel-build": "echo \"Skipping framework build; serving static files\""
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo \"No build step required; static assets served\""
+  },
+  "dependencies": {
+    "express": "^4.18.2"
   }
 }
