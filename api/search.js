@@ -84,8 +84,8 @@ async function fetchViaPublicChannelScrape(channelName, limit) {
   if (!response.ok) return [];
 
   const html = await response.text();
-  const blockRegex = /<div class="tgme_widget_message_text[\s\S]*?<\/div>/g;
-  const dateRegex = /time datetime="([^"]+)"/;
+  const blockRegex = /<div[^>]*class="[^"]*tgme_widget_message_text[^"]*"[\s\S]*?<\/div>/g;
+  const dateRegex = /time[^>]*datetime="([^"]+)"/i;
   const blocks = html.match(blockRegex) || [];
 
   const messages = [];
@@ -93,8 +93,11 @@ async function fetchViaPublicChannelScrape(channelName, limit) {
     const text = stripHtml(blocks[i]).trim();
     if (!text) continue;
 
-    const before = html.slice(Math.max(0, html.indexOf(blocks[i]) - 400), html.indexOf(blocks[i]));
-    const dateMatch = before.match(dateRegex);
+    const idx = html.indexOf(blocks[i]);
+    const windowStart = Math.max(0, idx - 800);
+    const windowEnd = Math.min(html.length, idx + blocks[i].length + 800);
+    const surrounding = html.slice(windowStart, windowEnd);
+    const dateMatch = surrounding.match(dateRegex);
     messages.push({
       id: `scrape-${i + 1}`,
       date: dateMatch ? dateMatch[1] : "unknown",
