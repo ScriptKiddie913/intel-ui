@@ -5,6 +5,7 @@
   "description": "Vercel UI for searching Telegram intelligence messages and rendering graph nodes",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "vercel-build": "echo \"Skipping framework build; serving static files\""
   }
 }
