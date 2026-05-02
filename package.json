@@ -10,6 +10,7 @@
     "build": "echo \"No build step required; static assets served\""
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "sql.js": "^1.13.0"
   }
 }

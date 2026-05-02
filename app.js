@@ -15,20 +15,20 @@ class TelegramSearchApp {
   }
 
   bindEvents() {
-    const searchInput = this.container.querySelector('#search-input')
-    const searchBtn = this.container.querySelector('#search-btn')
-    const aiInput = this.container.querySelector('#ai-input')
-    const aiBtn = this.container.querySelector('#ai-btn')
+    this.searchInput = this.container.querySelector('#search-input')
+    this.searchBtn = this.container.querySelector('#search-btn')
+    this.aiInput = this.container.querySelector('#ai-input')
+    this.aiBtn = this.container.querySelector('#ai-btn')
 
-    searchInput.addEventListener('keypress', (e) => {
+    this.searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.search()
     })
-    searchBtn.addEventListener('click', () => this.search())
+    this.searchBtn.addEventListener('click', () => this.search())
 
-    aiInput.addEventListener('keypress', (e) => {
+    this.aiInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.sendToAI()
     })
-    aiBtn.addEventListener('click', () => this.sendToAI())
+    this.aiBtn.addEventListener('click', () => this.sendToAI())
 
     // Magnetic mouse tracking
     document.addEventListener('mousemove', this.magneticMove.bind(this))
@@ -47,21 +47,25 @@ class TelegramSearchApp {
   }
 
   async search() {
+    this.query = (this.searchInput?.value || this.query || '').trim()
+    if (!this.query) return
+
     this.loading = true
     this.updateUI()
     
     try {
-      // Mock API call to your backend
-      const response = await fetch('/api/search?q=' + encodeURIComponent(this.query))
+      const response = await fetch('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query: this.query, limit: 80 })
+      })
       const data = await response.json()
-      this.results = data.hits || Array.from({length: 8}, (_, i) => ({
-        id: i,
-        file: `intel_doc_${Date.now()}_${i}.txt`,
-        content: `Found: user${i}@gmail.com | +1-555-01${i}234 | High confidence credential match`,
-        score: 0.87 + Math.random() * 0.13
-      }))
+      this.results = Array.isArray(data.messages) ? data.messages : []
     } catch (error) {
       console.error('Search error:', error)
+      this.results = []
     }
     
     this.loading = false
@@ -104,10 +108,10 @@ class TelegramSearchApp {
   render() {
     this.container.innerHTML = `
       <header class="text-center mb-16 animate-entrance">
-        <h1 class="text-6xl font-black bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent mb-6 drop-shadow-2xl">
+        <h1 class="text-6xl font-black bg-gradient-to-r from-sky-200 via-cyan-200 to-emerald-200 bg-clip-text text-transparent mb-6 drop-shadow-2xl">
           Telegram AI Intel
         </h1>
-        <p class="text-xl text-gray-300 max-w-2xl mx-auto animate-entrance">
+        <p class="text-xl text-slate-300 max-w-2xl mx-auto animate-entrance">
           Magnetic search interface powered by your Telegram intel bot
         </p>
       </header>
@@ -116,26 +120,36 @@ class TelegramSearchApp {
         <!-- Search -->
         <div class="space-y-8">
           <div class="relative">
-            <input id="search-input" type="text" placeholder="🔍 email password phone crypto..." 
-              class="w-full p-8 text-2xl bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl focus:outline-none focus:ring-4 focus:ring-white/30 shadow-2xl text-white placeholder-gray-400">
-            <button id="search-btn" class="absolute right-4 top-1/2 -translate-y-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-10 py-6 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300">
+            <input id="search-input" type="text" value="${this.query.replace(/"/g, '&quot;')}" placeholder="🔍 email password phone crypto..." 
+              class="w-full p-8 text-2xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/70 rounded-3xl focus:outline-none focus:ring-4 focus:ring-sky-400/30 shadow-2xl text-slate-100 placeholder-slate-400">
+            <button id="search-btn" class="absolute right-4 top-1/2 -translate-y-1/2 bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-10 py-6 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-sky-500/30 hover:scale-105 transition-all duration-300">
               Search Intel
             </button>
           </div>
 
           ${this.results.length ? `
-            <div class="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-              <h2 class="text-3xl font-bold text-white mb-8 flex items-center">
-                📊 ${this.results.length} Intel Matches
+            <div class="bg-slate-900/70 backdrop-blur-xl rounded-3xl p-8 border border-slate-700/60">
+              <h2 class="text-3xl font-bold text-slate-100 mb-8 flex items-center gap-3">
+                📊 ${this.results.length} Related Tag Matches
               </h2>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-96 overflow-y-auto pr-2">
                 ${this.results.map(r => `
-                  <div class="magnetic-card group bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-xl p-6 rounded-2xl border border-white/20 hover:border-white/50 hover:shadow-2xl hover:shadow-blue-500/50 cursor-pointer transition-all duration-500 hover:scale-[1.02]">
-                    <h3 class="text-xl font-bold text-white mb-3">${r.file}</h3>
-                    <p class="text-gray-200 text-sm line-clamp-3 mb-4">${r.content}</p>
-                    <div class="flex justify-between items-center">
-                      <span class="text-xs opacity-75">Score</span>
-                      <span class="font-bold text-green-400 text-lg">${(r.score * 100).toFixed(1)}%</span>
+                  <div class="magnetic-card group bg-gradient-to-br from-slate-800/90 to-slate-900/95 backdrop-blur-xl p-6 rounded-2xl border border-slate-700/70 hover:border-sky-400/40 hover:shadow-2xl hover:shadow-sky-500/20 cursor-pointer transition-all duration-500 hover:scale-[1.02]">
+                    <div class="flex items-start justify-between gap-4 mb-3">
+                      <h3 class="text-lg font-bold text-slate-100 leading-snug">${String(r.text || '').slice(0, 120) || 'Matched Telegram message'}</h3>
+                      <span class="shrink-0 text-xs px-3 py-1 rounded-full bg-sky-500/15 text-sky-200 border border-sky-400/25">
+                        ${(Number(r.relevance) || 0).toFixed(0)}%
+                      </span>
+                    </div>
+                    <p class="text-slate-300 text-sm line-clamp-3 mb-4">${r.text || ''}</p>
+                    <div class="flex flex-wrap gap-2 mb-4 text-xs">
+                      <span class="px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">${r.category || 'other'}</span>
+                      <span class="px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">${r.location || 'unknown'}</span>
+                      ${(r.keywords || []).slice(0, 3).map(tag => `<span class="px-2 py-1 rounded-full bg-cyan-500/10 text-cyan-200 border border-cyan-400/20">${tag}</span>`).join('')}
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400">
+                      <span>${r.date || 'unknown date'}</span>
+                      <span>${(r.entities || []).slice(0, 2).join(', ') || 'no entities'}</span>
                     </div>
                   </div>
                 `).join('')}
@@ -146,25 +160,25 @@ class TelegramSearchApp {
 
         <!-- AI Chat -->
         <div class="space-y-6">
-          <div class="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+          <div class="bg-slate-900/70 backdrop-blur-xl rounded-3xl p-8 border border-slate-700/60">
+            <h2 class="text-3xl font-bold text-slate-100 mb-6 flex items-center gap-3">
               🤖 AI Intel Analyst
-              <span class="px-4 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm font-semibold border border-emerald-400/30">
+              <span class="px-4 py-1 bg-cyan-500/15 text-cyan-300 rounded-full text-sm font-semibold border border-cyan-400/30">
                 Live
               </span>
             </h2>
             
-            <div class="space-y-4 mb-8 max-h-80 overflow-y-auto bg-black/20 rounded-2xl p-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+            <div class="space-y-4 mb-8 max-h-80 overflow-y-auto bg-slate-950/50 rounded-2xl p-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
               ${this.chatMessages.map(msg => `
                 <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-                  <div class="max-w-md p-4 rounded-2xl ${msg.role === 'user' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white' : 'bg-white/10 text-white border border-white/20'}">
+                  <div class="max-w-md p-4 rounded-2xl ${msg.role === 'user' ? 'bg-gradient-to-r from-sky-500 to-cyan-600 text-white' : 'bg-slate-800/80 text-slate-100 border border-slate-700/70'}">
                     ${msg.content.replace(/\n/g, '<br>')}
                   </div>
                 </div>
               `).join('')}
               ${this.loading ? `
                 <div class="flex justify-start">
-                  <div class="bg-white/10 text-white border border-white/20 p-4 rounded-2xl animate-pulse">
+                  <div class="bg-slate-800/80 text-slate-100 border border-slate-700/70 p-4 rounded-2xl animate-pulse">
                     🔄 AI analyzing intelligence data...
                   </div>
                 </div>
@@ -173,8 +187,8 @@ class TelegramSearchApp {
 
             <div class="flex gap-3">
               <input id="ai-input" type="text" placeholder="Ask AI: 'extract emails' or 'risk analysis'..." 
-                class="flex-1 p-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-400/50 text-white placeholder-gray-400">
-              <button id="ai-btn" class="px-10 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-emerald-500/50 hover:scale-105 transition-all duration-300 whitespace-nowrap">
+                class="flex-1 p-4 bg-slate-900/80 backdrop-blur-xl border border-slate-700/70 rounded-2xl focus:outline-none focus:ring-4 focus:ring-cyan-400/30 text-slate-100 placeholder-slate-400">
+              <button id="ai-btn" class="px-10 py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-cyan-500/30 hover:scale-105 transition-all duration-300 whitespace-nowrap">
                 Analyze →
               </button>
             </div>

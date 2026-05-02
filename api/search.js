@@ -1,62 +1,250 @@
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const fs = require("fs");
+const path = require("path");
+const initSqlJs = require("sql.js");
+
+const DATABASE_PATH = process.env.DATABASE_PATH || path.join(__dirname, "..", "..", "telegram_intel.db");
 
 async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
-    const query = (body.query || "").trim();
-    const limit = Math.min(Math.max(Number(body.limit) || 80, 20), 180);
+    const input = typeof req.body === "string" ? safeParseJson(req.body) : req.body || {};
+    const query = String(input.query || req.query?.q || req.query?.query || "").trim();
+    const limit = Math.min(Math.max(Number(input.limit || req.query?.limit) || 80, 20), 180);
 
     if (!query) {
       return res.status(400).json({ error: "query is required" });
     }
 
-    const openrouterKey = process.env.OPENROUTER_API_KEY;
-    const model = process.env.OPENROUTER_MODEL || "openchat/openchat-7b";
-    const destChannel = (process.env.DEST_CHANNEL || "").trim();
-
-    if (!openrouterKey) {
-      return res.status(500).json({ error: "OPENROUTER_API_KEY is missing" });
-    }
-    if (!destChannel) {
-      return res.status(500).json({ error: "DEST_CHANNEL is missing" });
-    }
-
-    const rawMessages = await fetchChannelMessages({
-      destChannel,
-      botToken: (process.env.BOT_TOKEN || "").trim(),
-      limit,
-    });
-
-    if (!rawMessages.length) {
-      return res.status(200).json({
-        channel: destChannel,
-        nodes: [{ id: "query", label: query, type: "query" }],
-        edges: [],
-        messages: [],
-      });
-    }
-
-    const strictCandidates = lexicalPrefilter(rawMessages, query).slice(0, 45);
-    const intelligence = await rankWithOpenRouter({
-      query,
-      messages: strictCandidates,
-      apiKey: openrouterKey,
-      model,
-    });
+    const records = await fetchTaggedRecords(query, limit);
+    const graph = buildGraphFromRecords(query, records);
 
     return res.status(200).json({
-      channel: destChannel,
-      nodes: intelligence.nodes || [],
-      edges: intelligence.edges || [],
-      messages: intelligence.messages || [],
+      source: "database",
+      database: DATABASE_PATH,
+      query,
+      nodes: graph.nodes,
+      edges: graph.edges,
+      messages: graph.messages,
+      matches: graph.messages.length,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message || "Search failed" });
   }
+}
+
+module.exports = handler;
+
+let sqlModulePromise;
+
+async function getSqlModule() {
+  if (!sqlModulePromise) {
+    sqlModulePromise = initSqlJs({
+      locateFile: (file) => path.join(__dirname, "..", "node_modules", "sql.js", "dist", file),
+    });
+  }
+  return sqlModulePromise;
+}
+
+async function fetchTaggedRecords(query, limit) {
+  if (!fs.existsSync(DATABASE_PATH)) {
+    return [];
+  }
+
+  const SQL = await getSqlModule();
+  const fileBuffer = fs.readFileSync(DATABASE_PATH);
+  const db = new SQL.Database(fileBuffer);
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='messages'");
+    if (!tables.length) {
+      return [];
+    }
+
+    const stmt = db.prepare(
+      "SELECT message_id, chat_id, source_name, source_username, message_date, text, category, location, keywords_text, entities_text, tags_json, search_blob, has_media, media_type, message_hash FROM messages ORDER BY message_date DESC LIMIT 1000"
+    );
+    const rows = [];
+    while (stmt.step()) {
+      rows.push(stmt.getAsObject());
+    }
+    stmt.free();
+
+    const tokens = extractTokens(query);
+    const ranked = rows
+      .map((row) => scoreRecord(row, tokens, query))
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score || String(b.message_date).localeCompare(String(a.message_date)))
+      .slice(0, limit);
+
+    return ranked;
+  } finally {
+    db.close();
+  }
+}
+
+function buildGraphFromRecords(query, records) {
+  const nodes = [{ id: "query", label: query, type: "query" }];
+  const edges = [];
+  const messages = [];
+  const seenNodes = new Set(["query"]);
+  const seenEdges = new Set();
+
+  for (const record of records) {
+    const messageId = `msg_${record.chat_id}_${record.message_id}`;
+    const messageLabel = String(record.text || "").slice(0, 120) || String(record.category || "message");
+    const tags = parseTags(record);
+    const tagNodes = buildTagNodes(tags);
+
+    messages.push({
+      id: messageId,
+      chat_id: Number(record.chat_id),
+      message_id: Number(record.message_id),
+      date: String(record.message_date || "unknown"),
+      text: String(record.text || ""),
+      category: String(record.category || tags.category || "other"),
+      location: String(record.location || tags.location || "unknown"),
+      keywords: Array.isArray(tags.keywords) ? tags.keywords : [],
+      entities: Array.isArray(tags.entities) ? tags.entities : [],
+      relevance: clampNumber(record.score, 0, 100),
+    });
+
+    if (!seenNodes.has(messageId)) {
+      nodes.push({ id: messageId, label: messageLabel, type: "message" });
+      seenNodes.add(messageId);
+    }
+
+    addEdge(edges, seenEdges, "query", messageId, "matches");
+
+    for (const tag of tagNodes) {
+      if (!seenNodes.has(tag.id)) {
+        nodes.push(tag);
+        seenNodes.add(tag.id);
+      }
+      addEdge(edges, seenEdges, messageId, tag.id, tag.edgeLabel);
+      addEdge(edges, seenEdges, "query", tag.id, "related_tag");
+    }
+  }
+
+  return { nodes, edges, messages };
+}
+
+function buildTagNodes(tags) {
+  const out = [];
+  if (tags.category && tags.category !== "other") {
+    out.push({ id: `category_${slugify(tags.category)}`, label: tags.category, type: "category", edgeLabel: "category" });
+  }
+  if (tags.location && tags.location !== "unknown") {
+    out.push({ id: `location_${slugify(tags.location)}`, label: tags.location, type: "location", edgeLabel: "location" });
+  }
+
+  for (const keyword of tags.keywords || []) {
+    out.push({ id: `keyword_${slugify(keyword)}`, label: keyword, type: "keyword", edgeLabel: "has_keyword" });
+  }
+
+  for (const entity of tags.entities || []) {
+    out.push({ id: `entity_${slugify(entity)}`, label: entity, type: "entity", edgeLabel: "entity" });
+  }
+
+  return dedupeBy(out, (item) => item.id);
+}
+
+function scoreRecord(record, tokens, query) {
+  const searchBlob = String(record.search_blob || "").toLowerCase();
+  const category = String(record.category || "").toLowerCase();
+  const location = String(record.location || "").toLowerCase();
+  const keywords = String(record.keywords_text || "").toLowerCase();
+  const entities = String(record.entities_text || "").toLowerCase();
+  const text = String(record.text || "").toLowerCase();
+
+  let score = 0;
+  let matched = 0;
+
+  for (const token of tokens) {
+    if (!token) continue;
+    const directHit = searchBlob.includes(token);
+    if (directHit) {
+      matched += 1;
+      score += 12;
+    }
+    if (category === token) score += 16;
+    if (location.includes(token)) score += 12;
+    if (keywords.includes(token)) score += 10;
+    if (entities.includes(token)) score += 10;
+    if (text.includes(token)) score += 6;
+  }
+
+  const fullQuery = query.toLowerCase();
+  if (fullQuery && searchBlob.includes(fullQuery)) {
+    score += 18;
+  }
+
+  if (!tokens.length) {
+    score += 1;
+  }
+
+  score += Math.min(Number(record.message_id) % 10, 2);
+
+  return {
+    ...record,
+    score: matched ? score : (fullQuery && searchBlob.includes(fullQuery) ? score : 0),
+  };
+}
+
+function parseTags(record) {
+  try {
+    const parsed = JSON.parse(String(record.tags_json || "{}"));
+    return {
+      location: String(parsed.location || record.location || "unknown"),
+      category: String(parsed.category || record.category || "other"),
+      keywords: Array.isArray(parsed.keywords) ? parsed.keywords : splitList(record.keywords_text),
+      entities: Array.isArray(parsed.entities) ? parsed.entities : splitList(record.entities_text),
+    };
+  } catch {
+    return {
+      location: String(record.location || "unknown"),
+      category: String(record.category || "other"),
+      keywords: splitList(record.keywords_text),
+      entities: splitList(record.entities_text),
+    };
+  }
+}
+
+function splitList(value) {
+  return String(value || "")
+    .split(/[,\n;]+|\s{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractTokens(query) {
+  return Array.from(
+    new Set(
+      String(query || "")
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((token) => token.length >= 2)
+    )
+  );
+}
+
+function addEdge(edges, seenEdges, source, target, label) {
+  const key = `${source}->${target}:${label}`;
+  if (seenEdges.has(key)) return;
+  seenEdges.add(key);
+  edges.push({ source, target, label });
+}
+
+function safeParseJson(text) {
+  try {
+    return JSON.parse(text || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "item";
 }
 
 module.exports = handler;
