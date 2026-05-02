@@ -1,39 +1,31 @@
-# Intel Graph Web
+# Tactical Telegram Search (web)
 
-This folder is a Vercel-ready web app with:
+Light FastAPI web UI that accepts user queries, extracts keypoints, and searches a configured Telegram channel for matching messages.
 
-- Search bar UI
-- Particle background
-- Magnetic action button
-- Tilt cards for results
-- Node graph visualization (D3 force graph)
-- API route that fetches Telegram channel messages and uses OpenRouter for strict relevance filtering
+Setup
 
-## Required Vercel Environment Variables
-
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_MODEL`
-- `DEST_CHANNEL`
-- `BOT_TOKEN` (required when `DEST_CHANNEL` is a numeric ID; optional for public username channels)
-
-## Notes on Message Source
-
-- If `DEST_CHANNEL` is a public username, API tries `https://t.me/s/<channel>` scraping.
-- If `DEST_CHANNEL` is numeric and `BOT_TOKEN` is set, API uses Telegram Bot API `getUpdates` and filters channel posts by `chat.id`.
-
-## Local Run
+1. Create a Python virtualenv and install requirements:
 
 ```bash
-cd web
-npm install
-npx vercel dev
+python -m venv .venv
+source .venv/bin/activate    # or .venv\Scripts\activate on Windows
+pip install -r web/requirements.txt
 ```
 
-Then open the local URL shown by Vercel.
+2. Environment variables required:
 
-## Deploy
+- `TELEGRAM_API_ID` (integer from my.telegram.org)
+- `TELEGRAM_API_HASH` (string from my.telegram.org)
+- `DEST_CHANNEL` (channel username or ID to search, e.g. `mychannel`)
+
+3. Run locally:
 
 ```bash
-cd web
-npx vercel --prod
+uvicorn web.app:app --host 0.0.0.0 --port 8000
 ```
+
+Notes
+
+- The app uses `Telethon` and requires a valid Telegram API ID and hash.
+- The configured `DEST_CHANNEL` must be accessible to the account used by Telethon (public username or a channel the account can read).
+- For deployment to Render, provide the env vars in the Render dashboard and use the above start command.

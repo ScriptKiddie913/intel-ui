@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Tactical Intel — Chat Search</title>
+    <style>
+      body{font-family:Inter,Segoe UI,Arial;margin:0;background:#0b1220;color:#dbe7ff}
+      .container{max-width:900px;margin:32px auto;padding:20px;background:#071026;border-radius:8px}
+      .chat{height:320px;overflow:auto;padding:8px;background:#04121b;border-radius:6px}
+      .msg{margin:8px 0}
+      .user{color:#9fd3ff}
+      .bot{color:#ffd1a9}
+      .controls{display:flex;gap:8px;margin-top:12px}
+      input[type=text]{flex:1;padding:8px;border-radius:6px;border:1px solid #123}
+      button{padding:8px 12px;border-radius:6px;border:none;background:#0b6;cursor:pointer}
+      .results{margin-top:12px}
+      .card{background:#02121a;padding:10px;border-radius:6px;margin:8px 0}
+      a{color:#7fd3ff}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Tactical Intel — Chat Search</h2>
+      <p>Enter a query. The app extracts key points, searches the configured Telegram channel, and returns matched messages.</p>
+
+      <div class="chat" id="chat"></div>
+
+      <div class="controls">
+        <input id="inp" type="text" placeholder="Ask about area, tags, unit movement, e.g. #recon, supply convoy" />
+        <button id="send">Search</button>
+      </div>
+
+      <div class="results" id="results"></div>
+    </div>
+
+    <script src="/static/main.js"></script>
+  </body>
+</html>
