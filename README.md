@@ -1,70 +1,39 @@
-# Telegram Search Web Interface
+# Intel Graph Web
 
-## Vercel Deployment
+This folder is a Vercel-ready web app with:
 
-1. Push the `web/` folder to GitHub
-2. Vercel dashboard → Import repo  
-3. **Root directory: `web/`**
-4. **Environment Variables** (Settings → Environment Variables):
-   ```
-   NEXT_PUBLIC_API_URL=https://your-backend-api.vercel.app/api
-   NEXT_PUBLIC_BOT_URL=https://t.me/your_search_bot
-   ```
-5. Deploy!
+- Search bar UI
+- Particle background
+- Magnetic action button
+- Tilt cards for results
+- Node graph visualization (D3 force graph)
+- API route that fetches Telegram channel messages and uses OpenRouter for strict relevance filtering
 
-## Environment Variables
+## Required Vercel Environment Variables
 
-| Name | Required | Description | Example |
-|------|----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | ✅ | Backend API endpoint | `https://your-api.vercel.app/api` |
-| `NEXT_PUBLIC_BOT_URL` | ✅ | Telegram bot link | `https://t.me/search_bot` |
-| `BOT_TOKEN` | 🔄 | Bot token (server-side) | `123456:ABC...` |
-| `TELEGRAM_CHANNEL_ID` | 🔄 | Channel ID | `-1001234567890` |
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
+- `DEST_CHANNEL`
+- `BOT_TOKEN` (required when `DEST_CHANNEL` is a numeric ID; optional for public username channels)
 
-**✅ Client-side** (`NEXT_PUBLIC_*`) - available in browser  
-**🔄 Server-side** - for future API routes (if adding `/api/search`)
+## Notes on Message Source
 
-**.env.local** created with examples - customize before deploy.
+- If `DEST_CHANNEL` is a public username, API tries `https://t.me/s/<channel>` scraping.
+- If `DEST_CHANNEL` is numeric and `BOT_TOKEN` is set, API uses Telegram Bot API `getUpdates` and filters channel posts by `chat.id`.
 
+## Local Run
 
-## Local Development (Windows)
-
-```cmd
+```bash
 cd web
 npm install
-npm run dev
+npx vercel dev
 ```
 
-## Project Structure
+Then open the local URL shown by Vercel.
 
+## Deploy
+
+```bash
+cd web
+npx vercel --prod
 ```
-web/
-├── app/
-│   ├── layout.tsx      - Root layout
-│   ├── page.tsx        - Home page
-│   └── globals.css     - Global styles
-├── package.json        - Dependencies
-├── vercel.json         - Vercel config
-├── tailwind.config.js  - Tailwind config
-├── postcss.config.js   - PostCSS config
-└── next.config.mjs     - Next.js config
-```
-
-## API Integration
-
-Add API routes in `app/api/` to connect with your Telegram bot:
-
-```
-app/api/search/route.ts
-app/api/stats/route.ts
-```
-
-## Environment Variables (Vercel)
-
-```
-NEXT_PUBLIC_BOT_URL=https://your-bot-url
-BOT_TOKEN=your_token
-```
-
-Ready for Vercel deployment 🚀
-

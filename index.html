@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Intel Graph Search</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://d3js.org/d3.v7.min.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <canvas id="particle-bg" aria-hidden="true"></canvas>
+
+    <main class="app-shell">
+      <section class="hero tilt-card">
+        <p class="kicker">DEST_CHANNEL Intelligence Explorer</p>
+        <h1>Graph Search Over Telegram Signals</h1>
+        <p class="subtitle">
+          Enter a focused query. The backend reads destination-channel posts, applies strict relevance analysis with OpenRouter,
+          and returns only directly related intelligence nodes.
+        </p>
+
+        <form id="search-form" class="search-wrap" autocomplete="off">
+          <input
+            id="query-input"
+            name="query"
+            type="text"
+            placeholder="e.g. Bahawalpur attack timeline and organizations involved"
+            required
+          />
+          <button id="search-btn" class="magnetic-btn" type="submit">
+            <span>Analyze</span>
+          </button>
+        </form>
+
+        <div id="status" class="status">Ready</div>
+      </section>
+
+      <section class="panel-grid">
+        <article class="panel graph-panel tilt-card">
+          <header>
+            <h2>Node Graph</h2>
+            <p>Directly relevant clusters and entities</p>
+          </header>
+          <div id="graph-root" class="graph-root"></div>
+        </article>
+
+        <article class="panel results-panel tilt-card">
+          <header>
+            <h2>Matched Messages</h2>
+            <p>Strict relevance ranking from DEST_CHANNEL</p>
+          </header>
+          <div id="results" class="results-list"></div>
+        </article>
+      </section>
+    </main>
+  </body>
+  </html>
