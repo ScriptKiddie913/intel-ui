@@ -2,3 +2,4 @@ fastapi
 uvicorn[standard]
 telethon
 jinja2
+spacy

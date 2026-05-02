@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: tactical-telegram-search
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: "uvicorn web.app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: TELEGRAM_API_ID
+        value: "<SET_ME>"
+        sync: false
+      - key: TELEGRAM_API_HASH
+        value: "<SET_ME>"
+        sync: false
+      - key: DEST_CHANNEL
+        value: "<SET_ME>"
+        sync: false
