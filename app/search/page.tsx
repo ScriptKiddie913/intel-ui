@@ -4,14 +4,25 @@ import { useState, useRef, useEffect } from 'react'
 
 export default function SearchPage() {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
+interface SearchResult {
+  file: string
+  content: string
+  score: number
+}
+const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
-  const [chatMessages, setChatMessages] = useState([])
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [aiResponse, setAiResponse] = useState('')
   const searchRef = useRef(null)
   const containerRef = useRef(null)
 
   const searchTelegram = async () => {
+    setResults([])
+
     setLoading(true)
     try {
       const res = await fetch('/api/search?q=' + encodeURIComponent(query))
